@@ -1,0 +1,12 @@
+{
+    "name": "HP_ESP32Servo",
+    "version": "0.1",
+    "author": "CPM",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/cyril-cpm/HP_ESP32Servo.git",
+        "branch": "master"
+    },
+    "frameworks": [ "arduino", "espidf" ],
+    "platforms": "espressif32"
+}
