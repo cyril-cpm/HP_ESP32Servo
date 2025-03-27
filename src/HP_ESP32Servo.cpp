@@ -33,7 +33,7 @@ static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMod
     timerConfig.timer_num = LEDC_TIMER_0;
     timerConfig.freq_hz = freq;
     timerConfig.clk_cfg = LEDC_USE_APB_CLK;
-    uint32_t maxResolution = ledc_find_suitable_duty_resolution(80000000, 50);
+    uint32_t maxResolution = 20;//ledc_find_suitable_duty_resolution(80000000, 50);
 
     if (maxResolution)
     {
@@ -50,6 +50,8 @@ static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMod
     }
 
     ESP_ERROR_CHECK(ledc_timer_config(&timerConfig));
+
+    ledc_fade_func_install(0);
 }
 
 Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
@@ -84,6 +86,14 @@ void Servo::write(float angle)
 {
     unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
     fAngle = angle;
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, value));
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
+
+    if (fFadingTimeMS)
+    {
+        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
+    }
+    else
+    {
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, value));
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
+    }
 }

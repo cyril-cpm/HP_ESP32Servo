@@ -1,4 +1,4 @@
-#include "HP_ESP32Servo.h"
+/*#include "HP_ESP32Servo.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -31,4 +31,4 @@ extern "C" void app_main()
         DS3218.write(i);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-}
+}*/
