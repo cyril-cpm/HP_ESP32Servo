@@ -12,6 +12,8 @@ class Servo
         Servo(gpio_num_t gpio, ledc_timer_t timerNum = LEDC_TIMER_0);
         void write(float angle);
         void    setFadingTimeMS(int value) { fFadingTimeMS = value; }
+        void    fadingCallback();
+        void    setFadingCallback(void (*callback)());
 
     private:
 
@@ -21,6 +23,7 @@ class Servo
 
         float           fAngle = 0.0f;
         int             fFadingTimeMS = 0;
+        void            (*fFadingCallback)() = nullptr;
 };
 
 #endif

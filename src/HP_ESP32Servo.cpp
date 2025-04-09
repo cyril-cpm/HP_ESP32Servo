@@ -18,6 +18,8 @@ static uint32_t map(float x, float in_min, float in_max, uint32_t out_min, uint3
     return out_min + (x - in_min) * (out_max - out_min) / (in_max - in_min);
 }
 
+static bool fadeFunctionInstalled = false;
+
 static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMode = LEDC_HIGH_SPEED_MODE,
     uint32_t freq = 50, ledc_clk_cfg_t clockConfig = LEDC_USE_APB_CLK)
 {
@@ -50,8 +52,22 @@ static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMod
     }
 
     ESP_ERROR_CHECK(ledc_timer_config(&timerConfig));
+    if (!fadeFunctionInstalled)
+    {
+        ESP_ERROR_CHECK(ledc_fade_func_install(0));
+        fadeFunctionInstalled = true;
+    }
+}
 
-    ledc_fade_func_install(0);
+IRAM_ATTR bool ledcCallback(const ledc_cb_param_t* param, void* userArg)
+{
+    ESP_LOGI("LEDC", "LEDC_CAllback");
+    if (userArg)
+    {
+        Servo* servo = reinterpret_cast<Servo*>(userArg);
+        servo->fadingCallback();
+    }
+    return false;
 }
 
 Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
@@ -80,20 +96,40 @@ Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
     channelConfig.timer_sel = fTimer;
 
     ESP_ERROR_CHECK(ledc_channel_config(&channelConfig));
+
+    ledc_cbs_t cbStruct;
+    cbStruct.fade_cb = ledcCallback;
+
+    ESP_ERROR_CHECK(ledc_cb_register(LEDC_HIGH_SPEED_MODE, fChannel, &cbStruct, this));
+
 }
 
 void Servo::write(float angle)
 {
-    unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
-    fAngle = angle;
+    if (angle != fAngle)
+    {
+        unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
+        fAngle = angle;
 
-    if (fFadingTimeMS)
-    {
-        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
+        if (fFadingTimeMS)
+        {
+            ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
+        }
+        else
+        {
+            ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, value));
+            ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
+        }
     }
-    else
-    {
-        ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, value));
-        ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
-    }
+}
+
+void Servo::setFadingCallback(void (*callback)())
+{
+    fFadingCallback = callback;
+}
+
+void Servo::fadingCallback()
+{
+    if (fFadingCallback)
+        fFadingCallback();
 }
