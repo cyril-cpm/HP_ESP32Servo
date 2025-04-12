@@ -110,17 +110,10 @@ void Servo::write(float angle)
     {
         unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
         fAngle = angle;
-
-        if (fFadingTimeMS)
-        {
-            ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
-        }
-        else
-        {
-            ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, value));
-            ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
-        }
+        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
     }
+    else if (fFadingCallback)
+        fFadingCallback();
 }
 
 void Servo::setFadingCallback(void (*callback)())
@@ -128,7 +121,7 @@ void Servo::setFadingCallback(void (*callback)())
     fFadingCallback = callback;
 }
 
-void Servo::fadingCallback()
+void Servo::fadingCallback() const
 {
     if (fFadingCallback)
         fFadingCallback();
