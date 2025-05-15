@@ -1,9 +1,6 @@
 #include "HP_ESP32Servo.h"
 #include "esp_log.h"
 
-#define MIN   26214
-#define MAX  131072
-
 static uint8_t initialisedTimer = 0b0000;
 
 static ledc_channel_t currentChannel = LEDC_CHANNEL_0;
@@ -117,12 +114,48 @@ void Servo::write(float angle, bool force)
 {
     if (force || angle != fAngle)
     {
-        unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
+        uint32_t newDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
+        float distance = abs(fAngle - angle);
         fAngle = angle;
-        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS < 500 ? 500 : fFadingTimeMS, LEDC_FADE_WAIT_DONE);
+
+        uint32_t steps = 0;
+
+        if (newDutyCycle > fCurrentDutyCycle)
+            steps = newDutyCycle - fCurrentDutyCycle;
+        else
+            steps = fCurrentDutyCycle - newDutyCycle;
+
+        int timeMs = distance * fSpeed * 1000;
+
+        int nbCycle = timeMs / 20;
+
+        uint32_t fadeScale;
+        uint32_t fadeCycleNum;
+
+        if (nbCycle > steps)
+        {
+            fadeCycleNum = nbCycle / steps;
+            fadeScale = 1;
+        }
+        else
+        {
+            fadeCycleNum = 1;
+            fadeScale = steps / nbCycle;
+        }
+
+        ledc_set_fade_with_step(LEDC_HIGH_SPEED_MODE, fChannel, newDutyCycle, fadeScale, fadeCycleNum);
+        //ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS < 500 ? 500 : fFadingTimeMS, LEDC_FADE_WAIT_DONE);
     }
     else if (fFadingCallback)
         fFadingCallback();
+}
+
+void Servo::setSpeed(float speed)
+{
+    if (speed == 0.0f)
+        speed = 0.1f;
+
+    fSpeed = speed;
 }
 
 void Servo::setFadingCallback(void (*callback)())
