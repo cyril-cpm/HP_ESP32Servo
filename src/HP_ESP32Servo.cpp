@@ -35,7 +35,13 @@ static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMod
     timerConfig.timer_num = LEDC_TIMER_0;
     timerConfig.freq_hz = freq;
     timerConfig.clk_cfg = LEDC_USE_APB_CLK;
+#if defined(ARDUINO)
     uint32_t maxResolution = 20;//ledc_find_suitable_duty_resolution(80000000, 50);
+
+#elif defined(ESP_PLATFORM)
+    uint32_t maxResolution = ledc_find_suitable_duty_resolution(80000000, 50);
+
+#endif
 
     if (maxResolution)
     {
@@ -43,7 +49,10 @@ static void initTimer(ledc_timer_t timerNum = LEDC_TIMER_0, ledc_mode_t speedMod
         if (maxResolution < LEDC_TIMER_BIT_MAX)
             timerConfig.duty_resolution = static_cast<ledc_timer_bit_t>(maxResolution);
         else
+        {
             timerConfig.duty_resolution = static_cast<ledc_timer_bit_t>(LEDC_TIMER_BIT_MAX - 1);
+            ESP_LOGI("DUTY_RES", "Max Duty Resolution switched to %d", LEDC_TIMER_BIT_MAX - 1);
+        }
     }
     else
     {
@@ -104,13 +113,13 @@ Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
 
 }
 
-void Servo::write(float angle)
+void Servo::write(float angle, bool force)
 {
-    if (angle != fAngle)
+    if (force || angle != fAngle)
     {
         unsigned long value = map(angle, 0.0f, 180.0f, MIN, MAX);
         fAngle = angle;
-        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS, LEDC_FADE_WAIT_DONE);
+        ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, fChannel, value, fFadingTimeMS < 500 ? 500 : fFadingTimeMS, LEDC_FADE_WAIT_DONE);
     }
     else if (fFadingCallback)
         fFadingCallback();

@@ -10,7 +10,7 @@ class Servo
     public:
 
         Servo(gpio_num_t gpio, ledc_timer_t timerNum = LEDC_TIMER_0);
-        void write(float angle);
+        void write(float angle, bool force = false);
         void    setFadingTimeMS(int value) { fFadingTimeMS = value; }
         void    fadingCallback() const;
         void    setFadingCallback(void (*callback)());
