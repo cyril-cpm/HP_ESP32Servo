@@ -77,7 +77,7 @@ IRAM_ATTR bool ledcCallback(const ledc_cb_param_t* param, void* userArg)
     return false;
 }
 
-Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
+Servo::Servo(gpio_num_t gpio, bool reversed, ledc_timer_t timerNum)
 {
     if (currentChannel >= LEDC_CHANNEL_MAX)
     {
@@ -93,6 +93,10 @@ Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
     fChannel = currentChannel;
     fTimer = timerNum;
     fGpio = gpio;
+	fReversed = reversed;
+
+	if (fReversed)
+		fCurrentDutyCycle = (1<<20) - MIN;
 
     currentChannel = static_cast<ledc_channel_t>(currentChannel + 1);
 
@@ -113,66 +117,82 @@ Servo::Servo(gpio_num_t gpio, ledc_timer_t timerNum)
 
 void Servo::write(float angle, bool force)
 {
-    if (force)
-    {
-        uint32_t newDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
+    // if (force)
+    // {
+        uint32_t newDutyCycle = 0;
+
+		if (fReversed)
+			newDutyCycle = (1<<20) - map(angle, 0.0f, 180.0f, MIN, MAX);
+		else
+			newDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
+
+		ESP_LOGD("HP_Servo", "newDutyCycle = %d", newDutyCycle);
+
         ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, newDutyCycle);
 
         fCurrentDutyCycle = newDutyCycle;
         fAngle = angle;
-    }
-    else if (angle != fAngle)
-    {
-        uint32_t targetDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
-        float distance = abs(fAngle - angle);
-        fAngle = angle;
-
-        uint32_t steps = 0;
-
-        if (targetDutyCycle > fCurrentDutyCycle)
-            steps = targetDutyCycle - fCurrentDutyCycle;
-        else
-            steps = fCurrentDutyCycle - targetDutyCycle;
-
-        uint32_t timeMs = (distance / fSpeed) * 1000;
-
-        uint32_t nbCycle = timeMs / 20;
-
-        uint32_t fadeScale;
-        uint32_t fadeCycleNum;
-
-        if (nbCycle > steps && steps)
-        {
-            fadeCycleNum = nbCycle / steps;
-            fadeScale = 1;
-        }
-        else if (nbCycle)
-        {
-            fadeCycleNum = 1;
-            fadeScale = steps / nbCycle;
-        }
-        else
-        {
-            fadeCycleNum = 1;
-            fadeScale = steps;
-        }
-        
-        ESP_LOGI("HP_Servo", "distance %f, speed %f, timeMs %lu", distance, fSpeed, timeMs);
-        ESP_LOGI("HP_Servo", "steps %lu, nbCycle %lu", steps, nbCycle);
-        ESP_LOGI("HP_Servo", "scale %lu, cycle %lu, targetDuty %lu, currentDuty %lu", fadeScale, fadeCycleNum, targetDutyCycle, fCurrentDutyCycle);
-        
-        if (fadeScale >= 1024)
-        {
-            ESP_LOGI("HP_Servo", "scale too big");
-            fadeScale = 1023;
-        }
-
-        ledc_set_fade_step_and_start(LEDC_HIGH_SPEED_MODE, fChannel, targetDutyCycle, fadeScale, fadeCycleNum, LEDC_FADE_NO_WAIT);
-        
-        fCurrentDutyCycle = targetDutyCycle;
-    }
-    else if (fFadingCallback)
-        fFadingCallback();
+		//   }
+		//   else if (angle != fAngle)
+		//   {
+		//       uint32_t targetDutyCycle = 0;
+		//
+		// if (fReversed)
+		// 	targetDutyCycle = (1<<20) - map(angle, 0.0f, 180.0f, MIN, MAX);
+		// else
+		// 	targetDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
+		//
+		// ESP_LOGD("HP_Servo", "targetDutyCycle = %d", targetDutyCycle);
+		//
+		//       float distance = abs(fAngle - angle);
+		//       fAngle = angle;
+		//
+		//       uint32_t steps = 0;
+		//
+		//       if (targetDutyCycle > fCurrentDutyCycle)
+		//           steps = targetDutyCycle - fCurrentDutyCycle;
+		//       else
+		//           steps = fCurrentDutyCycle - targetDutyCycle;
+		//
+		//       uint32_t timeMs = (distance / fSpeed) * 1000;
+		//
+		//       uint32_t nbCycle = timeMs / 20;
+		//
+		//       uint32_t fadeScale;
+		//       uint32_t fadeCycleNum;
+		//
+		//       if (nbCycle > steps && steps)
+		//       {
+		//           fadeCycleNum = nbCycle / steps;
+		//           fadeScale = 1;
+		//       }
+		//       else if (nbCycle)
+		//       {
+		//           fadeCycleNum = 1;
+		//           fadeScale = steps / nbCycle;
+		//       }
+		//       else
+		//       {
+    //         fadeCycleNum = 1;
+    //         fadeScale = steps;
+    //     }
+    //
+    //     ESP_LOGI("HP_Servo", "distance %f, speed %f, timeMs %lu", distance, fSpeed, timeMs);
+    //     ESP_LOGI("HP_Servo", "steps %lu, nbCycle %lu", steps, nbCycle);
+    //     ESP_LOGI("HP_Servo", "scale %lu, cycle %lu, targetDuty %lu, currentDuty %lu", fadeScale, fadeCycleNum, targetDutyCycle, fCurrentDutyCycle);
+    //
+    //     if (fadeScale >= 1024)
+    //     {
+    //         ESP_LOGI("HP_Servo", "scale too big");
+    //         fadeScale = 1023;
+    //     }
+    //
+    //     ledc_set_fade_step_and_start(LEDC_HIGH_SPEED_MODE, fChannel, targetDutyCycle, fadeScale, fadeCycleNum, LEDC_FADE_NO_WAIT);
+    //
+    //     fCurrentDutyCycle = targetDutyCycle;
+    // }
+    // else if (fFadingCallback)
+    //     fFadingCallback();
 }
 
 void Servo::setSpeed(float speed)

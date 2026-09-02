@@ -13,7 +13,7 @@ class Servo
 {
     public:
 
-        Servo(gpio_num_t gpio, ledc_timer_t timerNum = LEDC_TIMER_0);
+        Servo(gpio_num_t gpio, bool reversed = false, ledc_timer_t timerNum = LEDC_TIMER_0);
         void write(float angle, bool force = false);
         void    setSpeed(float speed);
         void    fadingCallback() const;
@@ -25,6 +25,7 @@ class Servo
         ledc_channel_t  fChannel = LEDC_CHANNEL_MAX;
         ledc_timer_t    fTimer = LEDC_TIMER_MAX;
         gpio_num_t      fGpio = GPIO_NUM_NC;
+		bool			fReversed = false;
 
         float           fAngle = 0.0f; // degrees
         float           fSpeed = 5.0f; // degrees / seconds
