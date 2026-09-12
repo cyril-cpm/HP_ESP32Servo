@@ -95,16 +95,27 @@ Servo::Servo(gpio_num_t gpio, bool reversed, ledc_timer_t timerNum)
     fGpio = gpio;
 	fReversed = reversed;
 
-	if (fReversed)
-		fCurrentDutyCycle = (1<<20) - MIN;
-
     currentChannel = static_cast<ledc_channel_t>(currentChannel + 1);
 
-    ledc_channel_config_t channelConfig = {};
+}
 
-    channelConfig.channel = fChannel;
-    channelConfig.gpio_num = fGpio;
-    channelConfig.timer_sel = fTimer;
+void Servo::begin()
+{
+	ledc_channel_config_t channelConfig = {
+		.gpio_num = fGpio,
+		.speed_mode = LEDC_HIGH_SPEED_MODE,
+		.channel = fChannel,
+		.intr_type = LEDC_INTR_DISABLE,
+		.timer_sel = fTimer,
+		.duty = 0,
+		.hpoint = 0,
+		.sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
+		.flags = {
+			.output_invert = fReversed,
+		},
+		.deconfigure = false,
+	};
+
 
     ESP_ERROR_CHECK(ledc_channel_config(&channelConfig));
 
@@ -112,26 +123,20 @@ Servo::Servo(gpio_num_t gpio, bool reversed, ledc_timer_t timerNum)
     cbStruct.fade_cb = &ledcCallback;
 
     ESP_ERROR_CHECK(ledc_cb_register(LEDC_HIGH_SPEED_MODE, fChannel, &cbStruct, this));
-
 }
 
 void Servo::write(float angle, bool force)
 {
-    // if (force)
-    // {
-        uint32_t newDutyCycle = 0;
+	uint32_t newDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
 
-		if (fReversed)
-			newDutyCycle = (1<<20) - map(angle, 0.0f, 180.0f, MIN, MAX);
-		else
-			newDutyCycle = map(angle, 0.0f, 180.0f, MIN, MAX);
+	ESP_LOGI("HP_Servo", "newDutyCycle = %d", newDutyCycle);
 
-		ESP_LOGD("HP_Servo", "newDutyCycle = %d", newDutyCycle);
+	ESP_ERROR_CHECK(ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, newDutyCycle));
+	ESP_ERROR_CHECK(ledc_update_duty(LEDC_HIGH_SPEED_MODE, fChannel));
 
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, fChannel, newDutyCycle);
-
-        fCurrentDutyCycle = newDutyCycle;
-        fAngle = angle;
+	fCurrentDutyCycle = newDutyCycle;
+	fAngle = angle;
+	//
 		//   }
 		//   else if (angle != fAngle)
 		//   {

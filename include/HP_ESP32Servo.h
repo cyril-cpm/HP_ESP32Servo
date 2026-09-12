@@ -14,6 +14,7 @@ class Servo
     public:
 
         Servo(gpio_num_t gpio, bool reversed = false, ledc_timer_t timerNum = LEDC_TIMER_0);
+		void begin();
         void write(float angle, bool force = false);
         void    setSpeed(float speed);
         void    fadingCallback() const;
